@@ -1,5 +1,5 @@
 // use core::fmt;
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use serde_json;
 use std::io::Read;
 
@@ -17,18 +17,29 @@ struct Input {
     sequence: u32,
 }
 
+#[derive(Debug)]
 struct Amount(u64);
 
-impl Amount {
-    pub fn to_btc(&self) -> f64 {
+trait BitcoinValue {
+    fn to_btc(&self) -> f64;
+}
+
+impl BitcoinValue for Amount {
+    fn to_btc(&self) -> f64 {
         self.0 as f64 / 100_000_000.0
     }
 }
 
 #[derive(Debug, Serialize)]
 struct Output {
-    amount: f64,
+    #[serde(serialize_with = "as_btc")]
+    amount: Amount,
     script_pubkey: String,
+}
+
+fn as_btc<S: Serializer, T: BitcoinValue>(t: &T, s: S) -> Result<S::Ok, S::Error> {
+    let btc = t.to_btc();
+    s.serialize_f64(btc)
 }
 
 fn read_compact_size(transaction_bytes: &mut &[u8]) -> u64 {
@@ -112,7 +123,7 @@ fn main() {
     let mut outputs = vec![];
 
     for _ in 0..output_count {
-        let amount = read_amount(&mut bytes_slice).to_btc();
+        let amount = read_amount(&mut bytes_slice);
         let script_pubkey = read_script(&mut bytes_slice);
 
         outputs.push(Output {
