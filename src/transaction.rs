@@ -1,19 +1,38 @@
 use serde::{Serialize, Serializer};
-use serde_json;
-use std::io::Read;
+// use serde_json;
+// use std::io::Read;
 
 #[derive(Debug, Serialize)]
 pub struct Transaction {
+    pub transaction_id: Txid,
     pub version: u32,
     pub inputs: Vec<Input>,
     pub outputs: Vec<Output>,
+    pub lock_time: u32,
 }
 #[derive(Debug, Serialize)]
 pub struct Input {
-    pub txid: String,
+    pub txid: Txid,
     pub output_index: u32,
     pub script_sig: String,
     pub sequence: u32,
+}
+
+#[derive(Debug)]
+pub struct Txid([u8; 32]);
+
+impl Txid {
+    pub fn from_bytes(bytes: [u8; 32]) -> Txid {
+        Txid(bytes)
+    }
+}
+
+impl Serialize for Txid {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let mut bytes = self.0.clone();
+        bytes.reverse();
+        s.serialize_str(&hex::encode(bytes))
+    }
 }
 
 #[derive(Debug)]
